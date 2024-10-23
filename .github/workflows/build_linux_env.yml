@@ -1,0 +1,189 @@
+name: build_linux_env
+run-name: Create&Zip ${{ github.event.inputs.build_folder }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_folder:
+        description: "From which folder's environment.yml, the conda environment will be built"
+        type: string   
+        required: false
+        default: 'vlinux_llama2'
+      target_folder:
+        description: 'Envs path (must be on D drive)'
+        type: string
+        required: false
+        default: '/home/vhaslcshij/workspace'
+      download_jars:
+        description: "whether download jars for pyspark"
+        type: string
+        required: false
+        default: 'false'
+      sparknlp_version:
+        description: "sparknlp fat jar version"
+        type: string
+        required: false
+        default: '5.3.3'
+      sparknlp_gpu:
+        description: "sparknlp fat jar version, if wanting gpu, use '-gpu', otherwise leave it blank"
+        type: string
+        required: false
+        default: ''
+      download_spacy_model:
+        description: "whether download sm spacy models"
+        type: string
+        required: false
+        default: 'true'
+      zip_vol_size:
+        description: 'Max 7zip volumn size'
+        type: string
+        required: false
+        default: '400m' 
+      zip_jar_only:  
+        description: "whether zip jars file only"
+        type: string
+        required: false
+        default: 'false'   
+      retention_days:
+        description: 'Days to keep the artifacts'
+        type: int
+        required: false
+        default: 7
+
+jobs:
+  run_docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4      
+
+      # - name: install 7zip
+      #   run: |
+      #     sudo apt update
+      #     sudo apt install p7zip-full p7zip-rar
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@master
+        with:
+          overprovision-lvm: 'true'          
+          remove-dotnet: 'true'
+          # instead of using default value to mount to build path, ${{ github.event.inputs.target_folder }}/ is really the place we need more spaces.
+          build-mount-path: '${{ github.event.inputs.target_folder }}/'
+
+      - name: Cache Miniforge Environment
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.event.inputs.target_folder }}/${{ github.event.inputs.build_folder }}
+          key: ${{ runner.os }}-${{ github.event.inputs.build_folder }}-${{ hashFiles('${{ github.event.inputs.build_folder }}/environment.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ github.event.inputs.build_folder }}-
+
+
+      - name: mkdir
+        run: |
+          sudo useradd -u 277084423 vhaslcshij -p 111111
+          pwd
+          sudo mkdir -p ${{ github.event.inputs.target_folder }}
+          sudo mkdir -p ${{ github.event.inputs.target_folder }}/ivy
+          sudo chown -R vhaslcshij:vhaslcshij /home/vhaslcshij
+          sudo chmod 777 -R /home/vhaslcshij
+          ls -l /home/vhaslcshij
+
+      - name: install miniforge
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          # activate-environment: ${{ github.event.inputs.target_folder }}/${{ github.event.inputs.build_folder }}
+          miniforge-version: latest 
+          # environment-file: ${{ github.event.inputs.build_folder }}/environment.yml  
+            
+
+      - name: Clean Conda Environment
+        run: |
+          cd ${{ github.event.inputs.build_folder }}
+          conda config --set verbosity 2
+          # conda env update -f environment.yml -p ${{ github.event.inputs.target_folder }}/${{ github.event.inputs.build_folder }}
+          conda env create -f environment.yml -p ${{ github.event.inputs.target_folder }}/${{ github.event.inputs.build_folder }}
+          # if [ -d "${{ github.event.inputs.target_folder }}/${{ github.event.inputs.build_folder }}" ]; then
+          #   conda env create -f environment.yml -p ${{ github.event.inputs.target_folder }}/${{ github.event.inputs.build_folder }}
+          # else
+          #   conda env create -f environment.yml -p ${{ github.event.inputs.target_folder }}/${{ github.event.inputs.build_folder }}
+          # fi
+          echo "clean up cache..."
+          conda clean --all -f -y
+          pip cache purge  
+      
+      - name: check final environment settings
+        run: |
+          conda init
+          source /home/runner/.bashrc
+          conda activate ${{ github.event.inputs.target_folder }}/${{ github.event.inputs.build_folder }}
+          conda env export
+      
+      - name: Cache Ivy jars
+        if: ${{ github.event.inputs.download_jars == 'true' }}
+        uses: actions/cache@v4
+        with:
+          path: |
+            $ivyDir =  ${{ github.event.inputs.target_folder }}/ivy/jars
+          key: ${{ runner.os }}-ivy-${{ hashFiles('**/*.jar') }}
+          restore-keys: |
+            ${{ runner.os }}-ivy-
+      
+      - name: download sparknlp jars
+        if: ${{ github.event.inputs.download_jars == 'true' }}
+        env:
+          PYSPARK_JARS_IVY: ${{ github.event.inputs.target_folder }}/ivy
+        run: |
+          echo "PYSPARK_JARS_IVY=${{ env.PYSPARK_JARS_IVY }}"
+          source /home/runner/.bashrc
+          conda activate ${{ github.event.inputs.target_folder }}/${{ github.event.inputs.build_folder }}
+          if (!(Test-Path -Path "${{ env.PYSPARK_JARS_IVY }}/jars/spark-nlp-gpu-assembly-${{ github.event.inputs.sparknlp_version }}.jar")) {
+              curl -Lo "${{ env.PYSPARK_JARS_IVY }}/jars/spark-nlp${{ github.event.inputs.sparknlp_gpu }}-assembly-${{ github.event.inputs.sparknlp_version }}.jar" https://s3.amazonaws.com/auxdata.johnsnowlabs.com/public/jars/spark-nlp${{ github.event.inputs.sparknlp_gpu }}-assembly-${{ github.event.inputs.sparknlp_version }}.jar
+            } else {
+              echo "JAR already exists in ${{ env.PYSPARK_JARS_IVY }}/jars"
+            }          
+          python -c "from pyspark.sql import SparkSession; spark = SparkSession.builder.appName('Spark NLP').master('local[*]').config('spark.jars.ivy', '${{ github.event.inputs.target_folder }}/ivy').config('spark.jars.packages', 'com.johnsnowlabs.nlp:spark-nlp${{ github.event.inputs.sparknlp_gpu }}_2.12:${{ github.event.inputs.sparknlp_version }}').getOrCreate(); spark.stop();"
+
+      - name: download spacy models
+        if: ${{ github.event.inputs.download_spacy_model == 'true' }}
+        run: |
+          source /home/runner/.bashrc
+          conda activate ${{ github.event.inputs.target_folder }}/${{ github.event.inputs.build_folder }}
+          python -m spacy download en_core_web_sm
+          python -m spacy download en_core_web_md
+          # python -m spacy download en_core_web_trf   this result tranformers version conflicts
+
+      - name: check folder
+        run: |
+          ls ${{ github.event.inputs.target_folder }}
+          pwd
+          ls ${{ github.event.inputs.target_folder }}/${{ github.event.inputs.build_folder }}
+
+      - name: check jar folder
+        if: ${{ github.event.inputs.download_jars == 'true' }}
+        run: |
+          ls ${{ github.event.inputs.target_folder }}/ivy
+          ls ${{ github.event.inputs.target_folder }}/ivy/jars
+          rm -R ${{ github.event.inputs.target_folder }}/ivy/cache
+
+
+      - name: Compress and split folder
+        if: ${{ github.event.inputs.zip_jar_only == 'false' }}
+        run: |
+          pwd
+          7z a -t7z -v${{ github.event.inputs.zip_vol_size }} zipped/${{ github.event.inputs.build_folder }}.7z ${{ github.event.inputs.target_folder }}
+          ls zipped
+
+      - name: Compress and split ivy folder
+        if: ${{ github.event.inputs.zip_jar_only == 'true' }}
+        run: |
+          pwd
+          7z a -t7z -v${{ github.event.inputs.zip_vol_size }} zipped/${{ github.event.inputs.build_folder }}_ivy.7z ${{ github.event.inputs.target_folder }}/ivy
+          ls zipped
+
+      - name: Upload compressed parts as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.inputs.build_folder }}
+          path: zipped/*.7z.*
+          retention-days: ${{ github.event.inputs.retention_days }}   
+      

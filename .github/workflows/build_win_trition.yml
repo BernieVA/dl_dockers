@@ -1,4 +1,4 @@
-name: build_win_env
+name: build_win_triton
 run-name: Build ${{ github.event.inputs.build_folder }}
 on:
   workflow_dispatch:
@@ -7,52 +7,32 @@ on:
         description: "From which folder's environment.yml, the conda environment will be built"
         type: string   
         required: false
-        default: 'win_TMAC'
+        default: 'win_triton'
       target_folder:
         description: 'Envs path (must be on D drive)'
         type: string
         required: false
-        default: 'D:/conda_envs_jianlins'
+        default: 'D:/conda_envs_jianlins/'
       download_jars:
         description: "whether download jars for pyspark"
         type: string
         required: false
         default: 'false'
-      sparknlp_version:
-        description: "sparknlp fat jar version"
-        type: string
-        required: false
-        default: '5.3.3'
-      sparknlp_gpu:
-        description: "sparknlp fat jar version, if wanting gpu, use '-gpu', otherwise leave it blank"
-        type: string
-        required: false
-        default: ''
       download_spacy_model:
         description: "whether download sm spacy models"
         type: string
         required: false
-        default: 'false'
+        default: 'true'
       zip_vol_size:
         description: 'Max 7zip volumn size'
         type: string
         required: false
-        default: '400m' 
-      zip_jar_only:  
-        description: "whether zip jars file only"
-        type: string
-        required: false
-        default: 'false'   
+        default: '400m'      
       retention_days:
         description: 'Days to keep the artifacts'
         type: int
         required: false
         default: 7
-      remove_cache:
-        description: "whether remove the ivy cache, some setups might require it in air-gap environment"
-        type: string
-        required: false
-        default: 'false'
 
 permissions:
   actions: write
@@ -74,8 +54,7 @@ jobs:
     - name: Check Setting Folder
       run: |
         pwd
-        ls ${{ github.event.inputs.build_folder }}        
-      shell: bash
+        ls ${{ github.event.inputs.build_folder }}
     
     - name: Cache Miniforge Environment
       uses: actions/cache@v4
@@ -148,23 +127,24 @@ jobs:
       run: |
         echo "PYSPARK_JARS_IVY=${{ env.PYSPARK_JARS_IVY }}"
         conda activate ${{ github.event.inputs.target_folder }}/${{ github.event.inputs.build_folder }}
-        # if (!(Test-Path -Path "${{ env.PYSPARK_JARS_IVY }}/jars/spark-nlp-gpu-assembly-${{ github.event.inputs.sparknlp_version }}.jar")) {
-        #     curl -Lo "${{ env.PYSPARK_JARS_IVY }}/jars/spark-nlp${{ github.event.inputs.sparknlp_gpu }}-assembly-${{ github.event.inputs.sparknlp_version }}.jar" https://s3.amazonaws.com/auxdata.johnsnowlabs.com/public/jars/spark-nlp${{ github.event.inputs.sparknlp_gpu }}-assembly-${{ github.event.inputs.sparknlp_version }}.jar
-        #   } else {
-        #     echo "JAR already exists in ${{ env.PYSPARK_JARS_IVY }}/jars"
-        #   }
-        if ( [string]::IsNullOrEmpty('${{ github.event.inputs.sparknlp_gpu }}')){
-          python -c "import sparknlp; spark = sparknlp.start(params={'spark.jars.ivy':'${{ github.event.inputs.target_folder }}/ivy'}); spark.stop();"
-        }else{
-          python -c "import sparknlp; spark = sparknlp.start(gpu=True, params={'spark.jars.ivy':'${{ github.event.inputs.target_folder }}/ivy'}); spark.stop();"
-        }
+        if (!(Test-Path -Path "${{ env.PYSPARK_JARS_IVY }}/jars/spark-nlp-gpu-assembly-5.2.3.jar")) {
+            curl -Lo "${{ env.PYSPARK_JARS_IVY }}/jars/spark-nlp-gpu-assembly-5.2.3.jar" https://s3.amazonaws.com/auxdata.johnsnowlabs.com/public/jars/spark-nlp-gpu-assembly-5.2.3.jar
+          } else {
+            echo "JAR already exists in ${{ env.PYSPARK_JARS_IVY }}/jars"
+          }
+        python -c "from pyspark.sql import SparkSession; spark = SparkSession.builder.appName('Spark NLP').master('local[*]').config('spark.jars.ivy', '${{ github.event.inputs.target_folder }}/ivy').config('spark.jars.packages', 'com.johnsnowlabs.nlp:spark-nlp-gpu_2.12:4.2.2').getOrCreate(); spark.stop();"
     
-    - name: download spacy models
+    - name: download spacy models & build triton
       if: ${{ github.event.inputs.download_spacy_model == 'true' }}
       run: |
         conda activate ${{ github.event.inputs.target_folder }}/${{ github.event.inputs.build_folder }}
         python -m spacy download en_core_web_sm
         python -m spacy download en_core_web_md
+        python -m spacy download en_core_web_trf
+        git clone https://github.com/triton-inference-server/server
+        cd server
+        python build.py -v --no-container-build --build-dir=`pwd`/build --enable-all
+
 
     # - name: copy cached jars
     #   run: |
@@ -181,24 +161,8 @@ jobs:
       run: |
         ls ${{ github.event.inputs.target_folder }}/ivy
         ls ${{ github.event.inputs.target_folder }}/ivy/jars
-
-    - name: check jar folder
-      if: ${{ github.event.inputs.remove_cache == 'true' }}
-      run: |    
         Remove-Item -Path ${{ github.event.inputs.target_folder }}/ivy/cache/* -Recurse -Force
 
-    - name: run post build script
-      run: |
-        cd ${{ github.event.inputs.build_folder }}     
-        pwd
-        conda activate ${{ github.event.inputs.target_folder }}/${{ github.event.inputs.build_folder }}   
-        if (Test-Path -Path "./post_build.ps1") {
-          pwsh ./post_build.ps1
-        }else{
-          pwd 
-          ls
-          Write-Output "./post_build.ps1 doesn't exist. Skip executing it."
-        }
         
     - name: Check for 7-Zip installation
       run: |
@@ -207,17 +171,9 @@ jobs:
         }
   
     - name: Compress and split folder
-      if: ${{ github.event.inputs.zip_jar_only == 'false' }}
       run: |
         pwd
         7z a -t7z -v${{ github.event.inputs.zip_vol_size }} zipped/${{ github.event.inputs.build_folder }}.7z ${{ github.event.inputs.target_folder }}*
-        ls zipped
-
-    - name: Compress and split ivy folder
-      if: ${{ github.event.inputs.zip_jar_only == 'true' }}
-      run: |
-        pwd
-        7z a -t7z -v${{ github.event.inputs.zip_vol_size }} zipped/${{ github.event.inputs.build_folder }}_ivy.7z ${{ github.event.inputs.target_folder }}/ivy*
         ls zipped
 
     - name: Upload compressed parts as artifacts

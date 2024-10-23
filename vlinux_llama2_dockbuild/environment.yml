@@ -1,0 +1,12 @@
+name: base
+channels:
+  - nvidia
+  - defaults
+dependencies:
+  - python=3.8
+  - conda-forge::pyarrow=14.0.1
+  - pip:
+    - spacy
+    - pyspark==3.5.1
+    - spark-nlp==5.3.3
+    

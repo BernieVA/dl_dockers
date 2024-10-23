@@ -9,10 +9,9 @@ ARG openjdk_version="8"
 # Spark dependencies
 # Default values can be overridden at build time
 # (ARGS are in lower case to distinguish them from ENV)
-ARG spark_version="3.5.0"
+ARG spark_version="3.4.3"
 ARG hadoop_version="3"
 ARG scala_version
-ARG spark_checksum="8883c67e0a138069e597f3e7d4edbbd5c3a565d50b28644aad02856a1ec1da7cb92b8f80454ca427118f69459ea326eaa073cf7b1a860c3b796f4b07c2101319"
 
 
 ENV APACHE_SPARK_VERSION="${spark_version}" \
@@ -58,12 +57,22 @@ ENV PATH=$PATH:$JAVA_HOME/bin
 # Spark installation
 # You need to use https://archive.apache.org/dist/ website if you want to download old Spark versions
 # But it seems to be slower, that's why we use recommended site for download
+# https://dlcdn.apache.org/spark/spark-3.5.1/spark-3.5.1-bin-hadoop3.tgz
 RUN if [ -z "${scala_version}" ]; then \
-    wget -qO "spark.tgz" "https://dlcdn.apache.org/spark/spark-${APACHE_SPARK_VERSION}/spark-${APACHE_SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz"; \
+    wget -qO "sha512hash" "https://dlcdn.apache.org/spark/spark-${APACHE_SPARK_VERSION}/spark-${APACHE_SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz.sha512"; \    
   else \
+    wget -qO "sha512hash" "https://dlcdn.apache.org/spark/spark-${APACHE_SPARK_VERSION}/spark-${APACHE_SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}-scala${scala_version}.tgz.sha512"; \
+  fi && echo "$(grep -o '^[^ ]*' sha512hash)" > sha512value
+
+RUN cat sha512value
+
+RUN if [ -z "${scala_version}" ]; then \    
+    wget -qO "spark.tgz" "https://dlcdn.apache.org/spark/spark-${APACHE_SPARK_VERSION}/spark-${APACHE_SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz"; \
+  else \    
     wget -qO "spark.tgz" "https://dlcdn.apache.org/spark/spark-${APACHE_SPARK_VERSION}/spark-${APACHE_SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}-scala${scala_version}.tgz"; \
-  fi && \
-  echo "${spark_checksum} *spark.tgz" | sha512sum -c - && \
+  fi && \  
+  SPARK_CHECKSUM=$(cat sha512value) && \
+  echo "${SPARK_CHECKSUM} *spark.tgz" | sha512sum -c - && \
   tar xzf "spark.tgz" -C /usr/local --owner root --group root --no-same-owner && \
   rm "spark.tgz"
 

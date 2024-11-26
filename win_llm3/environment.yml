@@ -91,3 +91,11 @@ dependencies:
     - ninja
     - torch-ort
     - onnxruntime-gpu
+    - langchain
+    - langchain-community
+    - langserve[all]
+    - langchain-cli
+script:
+  - export CMAKE_ARGS="-DLLAMA_CUBLAS=on"
+  - export FORCE_CMAKE=1
+  - pip install llama-cpp-python

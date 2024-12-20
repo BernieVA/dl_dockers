@@ -1,4 +1,4 @@
-name: base
+name: win_modernbert
 channels:
   - nvidia
   - defaults

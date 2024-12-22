@@ -35,16 +35,11 @@ dependencies:
     # https://catalog.ngc.nvidia.com/orgs/nvidia/containers/pytorch/layers
     # may consider torchdynamo in later versions
     # https://pytorch.org/docs/stable/dynamo/installation.html
-    - setuptools==65
-    # tmp solution to fix the pip install medspacy     
-    # - git+https://github.com/jianlins/medspacy.git
-    - medspacy
-    - git+https://github.com/medspacy/medspacy_io.git
+    - setuptools
     - git+https://github.com/huggingface/transformers.git
     - flash-attn    
     # dependency version conflict, fix it later
     # - medpspacy-io
-    - simpletransformers
     - nltk==3.8.1
     - bioc==2.0
     - tqdm==4.65
@@ -52,53 +47,22 @@ dependencies:
     - pytest
     - wheel
     - joblib
-    - itsdangerous<2.1.0
     - accelerate
-    - lightning==2.1.2
     - pyspark==3.4.2
     - spark-nlp==5.3.3
     - gensim
-    - git+https://github.com/HarryCaveMan/sklearn-crfsuite.git
     - pyodbc
-    # torchserve
-    - torchserve
-    - torch-model-archiver
-    - torch-workflow-archiver
-    # additional dependencies required by torchserve
-    # https://github.dev/pytorch/serve/blob/master/requirements/common_gpu.txt
-    # https://github.dev/pytorch/serve/blob/master/requirements/common.txt
-    # https://github.com/pytorch/serve/blob/master/examples/Huggingface_Transformers/requirements.txt
     - nvgpu
     - optimum
-    - psutil==5.9.5
     - requests
-    - captum==0.6.0
     - packaging
     - pynvml
-    - pyyaml
-    - ninja
-    # torchserve's client
-    - grpcio
-    - protobuf
-    - grpcio-tools
-    - googleapis-common-protos
     - flask
     - flask-restful
     - ninja
     - torch-ort
     - onnxruntime-gpu
-    - langchain
-    - langchain-core
-    - langchain-community
-    - langchain-experimental
-    - langserve[all]
-    - langchain-cli
-    - langchain-huggingface
     - jupyterlab-freeze
     - scipy
     - sympy
     - statsmodels
-script:
-  - export CMAKE_ARGS="-DGGML_CUDA=on"
-  - export FORCE_CMAKE=1
-  - pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121

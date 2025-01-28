@@ -12,7 +12,7 @@ on:
         description: 'Envs path (must be on D drive)'
         type: string
         required: false
-        default: 'D:\conda_envs'
+        default: 'D:\conda_envs_jianlins'
       download_jars:
         description: "whether download jars for pyspark"
         type: string
@@ -32,7 +32,7 @@ on:
         description: "whether download sm spacy models"
         type: string
         required: false
-        default: 'false'
+        default: 'true'
       zip_vol_size:
         description: 'Max 7zip volumn size'
         type: string
@@ -97,16 +97,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                 
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ steps.tag.outputs.name }}
-        release_name: ${{ steps.tag.outputs.name }}
-        draft: false
-        prerelease: false          
+      
     
     - name: Cache Miniforge Environment
       uses: actions/cache@v4
@@ -159,7 +150,10 @@ jobs:
     - name: check final environment settings
       run: |
         conda activate ${{ github.event.inputs.target_folder }}/${{ github.event.inputs.build_folder }}
-        conda env export
+        mkdir -p zipped
+        conda env export > zipped/detailed_environment.yml
+        cat zipped/detailed_environment.yml
+
 
     - name: Set HADOOP_HOME environment variable
       if: ${{ github.event.inputs.download_jars == 'true' }}
@@ -281,7 +275,16 @@ jobs:
         path: zipped/*.7z.*
         retention-days: ${{ github.event.inputs.retention_days }}
 
-
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.tag.outputs.name }}
+        release_name: ${{ steps.tag.outputs.name }}
+        draft: false
+        prerelease: false   
 
     - name: Upload release
       id: upload_release
@@ -320,6 +323,12 @@ jobs:
           // Append the file URL to the release description
           releaseDescription += `\n\nView the corresponding [environment.yml](${fileUrl}) file used for this release.`;
           releaseDescription += `\n\nTo use it, unzip the folders inside and put them under ${{ github.event.inputs.target_folder }}`;
+          releaseDescription += `\n\nThis environment was built with following workflow settings: `;
+          releaseDescription += `\ndownload_jars: ${{ github.event.inputs.download_jars }}`;
+          releaseDescription += `\nsparknlp_version: ${{ github.event.inputs.sparknlp_version }}`;
+          releaseDescription += `\nsparknlp_gpu: ${{ github.event.inputs.sparknlp_gpu }}`;
+          releaseDescription += `\ndownload_spacy_model: ${{ github.event.inputs.download_spacy_model }}`;
+          releaseDescription += `\nzip_jar_only: ${{ github.event.inputs.zip_jar_only }}`;          
 
           // Update the release with the description
           await github.repos.updateRelease({

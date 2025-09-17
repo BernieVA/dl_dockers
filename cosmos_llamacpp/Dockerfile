@@ -1,6 +1,7 @@
 ARG UBUNTU_VERSION=22.04
 # This needs to generally match the container host's environment.
-ARG CUDA_VERSION=11.8.0
+ARG CUDA_VERSION=12.8.0
+# check the available versions here: https://hub.docker.com/r/nvidia/cuda/
 # Target the CUDA build image
 ARG BASE_CUDA_DEV_CONTAINER=nvidia/cuda:${CUDA_VERSION}-devel-ubuntu${UBUNTU_VERSION}
 # Target the CUDA runtime image
@@ -12,18 +13,40 @@ FROM ${BASE_CUDA_DEV_CONTAINER} AS build
 ARG CUDA_DOCKER_ARCH=default
 
 RUN apt-get update && \
-    apt-get install -y build-essential git cmake libcurl4-openssl-dev wget curl unzip p7zip
+    apt-get install -y build-essential git cmake libcurl4-openssl-dev wget curl unzip p7zip jq
 
 WORKDIR /app
 
 COPY . .
-# git clone llama cpp repo
-RUN wget $(curl -s https://api.github.com/repos/ggerganov/llama.cpp/releases/latest | grep "zipball_url" | cut -d '"' -f 4) -O llamacpp.zip && ls
-RUN unzip llamacpp.zip && \
-    rm *.zip && \
-    ls && \
-    mv *llama.cpp* llamacpp
-RUN cp -r llamacpp/. /app && cd /app
+
+RUN echo "Attempting to download source code using GitHub API..." && \
+    if curl -sL --connect-timeout 10 https://api.github.com/repos/ggml-org/llama.cpp/releases/latest -o release.json; then \
+        echo "Successfully contacted GitHub API"; \
+        if tag_name=$(jq -r .tag_name release.json) && [ -n "$tag_name" ] && [ "$tag_name" != "null" ]; then \
+            echo "Found release tag: $tag_name"; \
+            download_url="https://github.com/ggml-org/llama.cpp/archive/refs/tags/${tag_name}.zip"; \
+            echo "Downloading from: $download_url"; \
+            if wget -O llamacpp.zip "$download_url"; then \
+                echo "Successfully downloaded source code archive"; \
+                unzip llamacpp.zip && \
+                rm *.zip && \
+                # The directory name will be llama.cpp-{tag_name}
+                mv llama.cpp-* llamacpp && \
+                echo "Successfully extracted llama.cpp source code"; \
+            else \
+                echo "Failed to download source code archive, falling back to git clone"; \
+                git clone --depth 1 https://github.com/ggml-org/llama.cpp.git llamacpp; \
+            fi; \
+        else \
+            echo "Could not extract tag name, falling back to git clone"; \
+            git clone --depth 1 https://github.com/ggml-org/llama.cpp.git llamacpp; \
+        fi; \
+    else \
+        echo "Failed to contact GitHub API, falling back to git clone"; \
+        git clone --depth 1 https://github.com/ggml-org/llama.cpp.git llamacpp; \
+    fi && \
+    rm -f release.json && \
+    cp -r llamacpp/. /app && cd /app
 
 RUN ls /app
 

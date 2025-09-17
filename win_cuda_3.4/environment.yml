@@ -1,6 +1,8 @@
 name: base
 channels:
+  - anaconda
   - nvidia
+  - conda-forge
   - defaults
   - pytorch
 dependencies:
@@ -31,6 +33,7 @@ dependencies:
   - conda-forge::scikit-learn=1.3.2
   - conda-forge::jupytext
   - conda-forge::pyarrow=14.0.1
+  - anaconda::pyrush
   - pip:
     # https://catalog.ngc.nvidia.com/orgs/nvidia/containers/pytorch/layers
     # may consider torchdynamo in later versions
@@ -73,7 +76,7 @@ dependencies:
     - requests
     - captum==0.6.0
     - packaging
-    - pynvml
+    - nvidia-ml-py
     - pyyaml
     - ninja
     # torchserve's client
@@ -88,6 +91,7 @@ dependencies:
     - onnxruntime-gpu
     - jupyterlab-freeze
     - scipy
+    - optuna
     - sympy
     - statsmodels
     - pickleshare

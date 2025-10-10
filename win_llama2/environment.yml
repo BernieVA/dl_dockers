@@ -1,17 +1,23 @@
 name: base
 channels:
+  - anaconda
   - nvidia
+  - conda-forge
   - defaults
   - pytorch
 dependencies:
   - python=3.10
   - pytorch::pytorch
   - pytorch::torchvision
-  - pytorch::pytorch-cuda=12.2
-  - nvidia/label/cuda-12.2.0::cuda-nvcc
+  # - pytorch::torchaudio
+  - pytorch::pytorch-cuda=12.4
+  - nvidia/label/cuda-12.4.0::cuda-nvcc
   - faiss-gpu
   - conda-forge:cudnn
   - pytorch::torchtext
+  # github runner doesn't have a gpu, it seems not working , disable for now. 
+  # might work using https://github.com/gpgpu-sim/gpgpu-sim_distribution, check it later
+  # - nvidia/label/cuda-11.8.0::cutatoolkit
   - pandas
   - pip
   - numpy
@@ -26,10 +32,10 @@ dependencies:
   - conda-forge::imbalanced-learn=0.11.0
   - conda-forge::scikit-learn=1.3.2
   - conda-forge::jupytext
-  - conda-forge::spacy
   - conda-forge::pyarrow=14.0.1
+  - anaconda::pyrush
   - pip:
-    - setuptools
+    - setuptools==65
     - medspacy
     - git+https://github.com/medspacy/medspacy_io.git
     - transformers>=4.51.0

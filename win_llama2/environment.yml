@@ -7,8 +7,8 @@ dependencies:
   - python=3.10
   - pytorch::pytorch
   - pytorch::torchvision
-  - pytorch::pytorch-cuda=11.8
-  - nvidia/label/cuda-11.8.0::cuda-nvcc
+  - pytorch::pytorch-cuda=12.2
+  - nvidia/label/cuda-12.2.0::cuda-nvcc
   - faiss-gpu
   - conda-forge:cudnn
   - pytorch::torchtext
@@ -33,7 +33,7 @@ dependencies:
     - medspacy
     - git+https://github.com/medspacy/medspacy_io.git
     - transformers>=4.51.0
-    - sentence-transformers >= 2.7.0
+    - sentence-transformers < 5.0.0
     - simpletransformers
     - gpt4all
     - bitsandbytes

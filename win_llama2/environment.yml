@@ -21,7 +21,7 @@ dependencies:
   - pandas
   - pip
   - numpy
-  - openpyxl=3.0.10
+  # - openpyxl=3.0.10
   - sqlalchemy
   - ipympl
   - cython=0.29
@@ -35,9 +35,9 @@ dependencies:
   - conda-forge::pyarrow=14.0.1
   - anaconda::pyrush
   - pip:
-    - setuptools==65
-    - medspacy
-    - git+https://github.com/medspacy/medspacy_io.git
+    - setuptools
+    # - medspacy
+    # - git+https://github.com/medspacy/medspacy_io.git
     - transformers>=4.51.0
     - sentence-transformers < 5.0.0
     - simpletransformers
@@ -56,13 +56,13 @@ dependencies:
     - accelerate
     - lightning==2.1.2
     - pyspark==3.4.2
-    - spark-nlp==5.3.3
+    # - spark-nlp==5.3.3
     - gensim
     - pyodbc
-    - torchserve
-    - torch-model-archiver
-    - torch-workflow-archiver
-    - nvgpu
+    # - torchserve
+    # - torch-model-archiver
+    # - torch-workflow-archiver
+    # - nvgpu
     - optimum
     - psutil==5.9.5
     - requests
@@ -75,9 +75,9 @@ dependencies:
     - protobuf
     - grpcio-tools
     - googleapis-common-protos
-    - flask
-    - flask-restful
-    - ninja
+    # - flask
+    # - flask-restful
+    # - ninja
     - torch-ort
     - elasticsearch
     - onnxruntime-gpu

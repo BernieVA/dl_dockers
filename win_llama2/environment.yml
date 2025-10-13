@@ -17,7 +17,6 @@ dependencies:
   - pytorch::torchtext
   # github runner doesn't have a gpu, it seems not working , disable for now. 
   # might work using https://github.com/gpgpu-sim/gpgpu-sim_distribution, check it later
-  # - nvidia/label/cuda-11.8.0::cutatoolkit
   - pandas
   - pip
   - numpy
@@ -68,8 +67,7 @@ dependencies:
     - requests
     - captum==0.6.0
     - packaging
-    - pynvml
-    - pyyaml
+    # - pyyaml
     - ninja
     - grpcio
     - protobuf

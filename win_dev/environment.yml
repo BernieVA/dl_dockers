@@ -27,9 +27,10 @@ dependencies:
     - bioc
     - simpletransformers
     - nltk
+    - sqlalchemy<2.0   
+    - dask[complete]
     - numba
     - numpy
-    - sqlalchemy
     - ipympl
     - numexpr
     - statsmodels
@@ -82,7 +83,6 @@ dependencies:
     - py7zr
     - pyarrow
     - pydantic
-    - sqlalchemy
     - sqlparse
     - statsmodels
     - tensorflow
@@ -109,4 +109,3 @@ dependencies:
     - langchain-huggingface
     - langchain-anthropic
  
-prefix: D:\annaconda_env_jianlin\win_dev

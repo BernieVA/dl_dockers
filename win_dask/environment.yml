@@ -25,7 +25,7 @@ dependencies:
     - git+https://github.com/medspacy/medspacy_io.git
     - beautifulsoup4
     - bioc
-    - jupyter anywidget
+    - anywidget
     - simpletransformers
     - nltk
     - sqlalchemy
